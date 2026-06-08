@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -26,18 +26,3 @@ jobs:
       - name: Run tests
         run: |
           PYTHONPATH=. pytest tests/ -v
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy to DigitalOcean
-        uses: digitalocean/app_action@v1
-        with:
-          app_name: url-shortener
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
