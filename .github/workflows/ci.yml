@@ -1,0 +1,43 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install fastapi uvicorn sqlalchemy pytest httpx2
+
+      - name: Run tests
+        run: |
+          PYTHONPATH=. pytest tests/ -v
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to DigitalOcean
+        uses: digitalocean/app_action@v1
+        with:
+          app_name: url-shortener
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
