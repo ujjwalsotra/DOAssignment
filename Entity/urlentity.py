@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, Integer
 from database import Base
@@ -14,7 +14,11 @@ class URLDB(Base):
 
 class ShortenRequest(BaseModel):
     long_url: str
-    custom_alias: Optional[str] = None
+    custom_alias: Optional[str] = Field(default=None,
+                                        min_length=3,
+                                        max_length=20,
+                                        pattern="^[a-zA-Z0-9-_]+$"
+                                    )
 
 class UrlResponse(BaseModel):
     short_code:   str
