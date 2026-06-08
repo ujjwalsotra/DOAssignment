@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="URL Shortener")
+
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/docs")
+
 repo = UrlRepository()
 service = UrlService(repo)
 
