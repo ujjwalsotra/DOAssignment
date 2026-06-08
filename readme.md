@@ -4,6 +4,12 @@ A production-ready REST API for shortening URLs, built with FastAPI and SQLAlche
  
 ---
  
+## Live Demo
+ 
+API Docs: https://do-urlshortner-w2q9e.ondigitalocean.app/docs
+ 
+---
+ 
 ## Architecture
  
 ```
@@ -65,6 +71,8 @@ URLShortner/
 ├── main.py                   # FastAPI app and routes
 ├── database.py               # DB connection and session management
 ├── readme.md                 # This file
+├── requirements.txt          # Python dependencies
+├── conftest.py               # Pytest path configuration
 ├── Entity/
 │   └── urlentity.py          # Pydantic + SQLAlchemy models
 ├── Repository/
@@ -73,8 +81,11 @@ URLShortner/
 │   └── url_service.py        # Business logic
 ├── Cache/
 │   └── cache.py              # In-memory TTL cache
-└── tests/
-    └── test_api.py           # Unit and integration tests
+├── tests/
+│   └── test_api.py           # Unit and integration tests
+└── .github/
+    └── workflows/
+        └── ci.yml            # GitHub Actions CI pipeline
 ```
  
 ---
@@ -84,7 +95,7 @@ URLShortner/
 ### Install Dependencies
  
 ```bash
-pip install fastapi uvicorn sqlalchemy pytest httpx
+pip install fastapi uvicorn sqlalchemy pytest httpx2
 ```
  
 ### Run Locally
@@ -106,6 +117,7 @@ http://localhost:8000/docs
 | Variable | Default | Description |
 |---|---|---|
 | DATABASE_URL | sqlite:///./urls.db | Database connection string |
+| BASE_URL | http://localhost:8000/ | Base URL for generating short URLs |
  
 ### Switch to PostgreSQL (Zero Code Changes)
  
@@ -139,10 +151,33 @@ export DATABASE_URL=postgresql://user:password@host:5432/dbname
 {
   "short_code": "zsNcwvD",
   "long_url": "https://www.google.com",
-  "short_url": "https://short.ly/zsNcwvD",
+  "short_url": "https://do-urlshortner-w2q9e.ondigitalocean.app/zsNcwvD",
   "created_at": "2026-06-08T05:47:47.446258",
   "access_count": 0
 }
+```
+ 
+---
+ 
+## Testing the Redirect
+ 
+Due to browser CORS restrictions, the redirect endpoint cannot be tested directly from Swagger UI.
+ 
+To test redirects:
+ 
+1. Use POST /shorten to generate a short code
+2. Copy the short_code from the response
+3. Open a new browser tab and visit:
+```
+https://do-urlshortner-w2q9e.ondigitalocean.app/{short_code}
+```
+ 
+You will be redirected to the original long URL.
+ 
+Or test via curl:
+ 
+```bash
+curl -L https://do-urlshortner-w2q9e.ondigitalocean.app/{short_code}
 ```
  
 ---
@@ -151,6 +186,22 @@ export DATABASE_URL=postgresql://user:password@host:5432/dbname
  
 ```bash
 PYTHONPATH=. pytest tests/ -v
+```
+ 
+Expected output:
+ 
+```
+tests/test_api.py::test_health PASSED
+tests/test_api.py::test_shorten_url PASSED
+tests/test_api.py::test_custom_alias PASSED
+tests/test_api.py::test_duplicate_alias PASSED
+tests/test_api.py::test_get_metadata PASSED
+tests/test_api.py::test_metadata_not_found PASSED
+tests/test_api.py::test_invalid_input PASSED
+tests/test_api.py::test_redirect PASSED
+tests/test_api.py::test_access_count_increments PASSED
+tests/test_api.py::test_cache_behaviour PASSED
+10 passed
 ```
  
 ---
@@ -163,6 +214,7 @@ PYTHONPATH=. pytest tests/ -v
 | Custom alias taken | 409 | Alias already taken |
 | Short code not found | 404 | URL not found |
 | Code generation failed | 500 | Could not generate unique code |
+| Unexpected server error | 500 | Internal server error |
  
 ---
  
@@ -170,6 +222,7 @@ PYTHONPATH=. pytest tests/ -v
  
 - DB unique constraint on short_code handles race conditions atomically
 - Concurrent requests attempting same alias — only one succeeds, others get 409
+- Access count uses atomic SQL update — no race condition on counter increment
 - Cache layer is single-instance safe with TTL expiry
 - In production: PostgreSQL handles concurrent writes reliably at scale
 ---
@@ -194,7 +247,9 @@ PYTHONPATH=. pytest tests/ -v
  
 1. Push code to GitHub
 2. Connect repo to DigitalOcean App Platform
-3. Set DATABASE_URL environment variable to PostgreSQL connection string
+3. Set environment variables:
+   - `DATABASE_URL` — PostgreSQL connection string
+   - `BASE_URL` — your app's public URL
 4. App auto-deploys on every push to main branch
 ### Run Command
  
@@ -212,8 +267,15 @@ uvicorn main:app --host 0.0.0.0 --port 8080
  
 ## CI/CD
  
-This project uses GitHub Actions for automated testing and deployment.
+This project uses GitHub Actions for automated testing.
  
 On every push to main:
-1. Run pytest test suite
-2. On passing tests, auto-deploy to DigitalOcean App Platform
+1. GitHub Actions installs dependencies and runs the full pytest suite
+2. On passing tests, DigitalOcean App Platform auto-deploys from the main branch
+3. Broken code never reaches production
+```
+Push to main
+    → GitHub Actions: run 10 tests
+    → Tests pass → DigitalOcean auto deploys
+    → Tests fail → deployment blocked
+```
