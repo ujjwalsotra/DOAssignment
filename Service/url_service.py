@@ -7,10 +7,11 @@ from Repository.url_repository import UrlRepository
 from Cache.cache import cache
 from fastapi import HTTPException
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://short.ly/"  # your DO domain
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000/")  # your DO domain
 CODE_LENGTH = 7
 
 class UrlService:
