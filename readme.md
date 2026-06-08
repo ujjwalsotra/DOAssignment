@@ -10,14 +10,46 @@ API Docs: https://do-urlshortner-w2q9e.ondigitalocean.app/docs
  
 ---
  
-## Architecture
- 
+## High Level Design
+
 ```
-Client → FastAPI Routes → Service Layer → Repository Layer → SQLite/PostgreSQL
-                                ↓
-                         In-Memory Cache (TTL: 5min)
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLIENT (Browser / curl)                   │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ HTTP Request
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     PYDANTIC VALIDATION                          │
+│              Validates input → 422 on failure                    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ Valid request
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      FASTAPI ROUTES                              │
+│         POST /shorten │ GET /{code} │ GET /meta/{code}          │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      SERVICE LAYER                               │
+│       Business logic │ Collision handling │ Code generation      │
+└──────────────┬──────────────────────────────────────────────────┘
+               │                                │
+               ▼                                ▼
+┌──────────────────────────┐     ┌──────────────────────────────┐
+│     IN-MEMORY CACHE      │     │        REPOSITORY            │
+│     TTL: 5 minutes       │     │   Atomic DB operations       │
+│   Cache hit → redirect   │     │   Unique constraint check    │
+└──────────────────────────┘     └──────────────┬───────────────┘
+                                                │
+                                                ▼
+                                 ┌──────────────────────────────┐
+                                 │          DATABASE             │
+                                 │   SQLite (local)             │
+                                 │   PostgreSQL (production)    │
+                                 └──────────────────────────────┘
+
 ```
- 
 ### Request Cycle and Data Flow
  
 ```
@@ -42,7 +74,13 @@ GET /meta/{short_code}
 GET /health
     → Returns service status
 ```
- 
+### CI/CD Flow
+```
+Push to main
+    → GitHub Actions: install deps → run 10 tests
+    → Tests pass → DigitalOcean App Platform auto deploys
+    → Tests fail → deployment blocked
+```
 ### Layer Responsibilities
  
 | Layer | Responsibility |
