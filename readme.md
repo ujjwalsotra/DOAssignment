@@ -6,7 +6,7 @@ A production-ready REST API for shortening URLs, built with FastAPI and SQLAlche
  
 ## Live Demo
  
-API Docs: https://do-urlshortner-w2q9e.ondigitalocean.app/docs
+API Docs: https://do-urlshortner-w2q9e.ondigitalocean.app/docs [not hosting it anymore]
  
 ---
  
